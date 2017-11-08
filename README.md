@@ -1,2 +1,2 @@
 # Practice-Python
-Python练手的小项目
+Python练手的小例子
