@@ -44,7 +44,7 @@ def get_city_aqi(city_url):
 	return city_aqi
 
 def main():
-	city_list = get_city_list()
+    city_list = get_city_list()
 	# for city in city_list:
 	# 	city_name = city[0]
 	# 	city_url = city[1]
