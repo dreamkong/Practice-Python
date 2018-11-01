@@ -6,3 +6,4 @@ flask练习/movie_project/.idea
 flask练习/movie_project/app/__pycache__
 flask练习/movie_project/app/admin/__pycache__
 flask练习/movie_project/app/home/__pycache__
+Pipfile.lock

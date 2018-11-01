@@ -5,7 +5,8 @@ Created by dreamkong on 2018/10/31
 __author__ = 'dreamkong'
 
 from . import home
-from flask import render_template
+from flask import render_template, redirect, url_for
+
 
 @home.route('/')
 def index():
@@ -17,7 +18,7 @@ def login():
 
 @home.route('/logout/')
 def logout():
-    return render_template('home/login.html')
+    return redirect(url_for('home.login'))
 
 @home.route('/register/')
 def register():
