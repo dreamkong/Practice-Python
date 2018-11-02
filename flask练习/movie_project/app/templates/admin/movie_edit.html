@@ -19,7 +19,7 @@
                             {% include 'ui/admin_msg.html' %}
                             <div class="form-group">
                                 <label for="input_title">片名</label>
-                                {{ form.title }}
+                                {{ form.title(value=movie.title) }}
                                 {% for err in form.title.errors %}
                                     <div class="col-md-12">
                                         <span style="color: red;">{{ err }}</span>
@@ -55,8 +55,10 @@
                                         <span style="color: red;">{{ err }}</span>
                                     </div>
                                 {% endfor %}
-                                <img data-src="holder.js/262x166" style="margin-top:5px;" class="img-responsive"
-                                     alt="">
+
+                                <img src="{{ url_for('static', filename='uploads/'+movie.logo) }}"
+                                     style="margin-top:5px; height: 250px; width: auto" class="img-responsive"
+                                     alt="logo">
                             </div>
                             <div class="form-group">
                                 <label for="input_star">星级</label>
@@ -78,7 +80,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="input_area">地区</label>
-                                {{ form.area }}
+                                {{ form.area(value=movie.area) }}
                                 {% for err in form.area.errors %}
                                     <div class="col-md-12">
                                         <span style="color: red;">{{ err }}</span>
@@ -87,7 +89,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="input_length">片长</label>
-                                {{ form.length }}
+                                {{ form.length(value=movie.length) }}
                                 {% for err in form.length.errors %}
                                     <div class="col-md-12">
                                         <span style="color: red;">{{ err }}</span>
@@ -96,7 +98,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="input_release_time">上映时间</label>
-                                {{ form.release_time }}
+                                {{ form.release_time(value=movie.release_time) }}
                                 {% for err in form.release_time.errors %}
                                     <div class="col-md-12">
                                         <span style="color: red;">{{ err }}</span>
@@ -130,8 +132,8 @@
         jwplayer("moviecontainer").setup({
             flashplayer: "{{ url_for('static', filename='jwplayer/jwplayer.flash.swf') }}",
             playlist: [{
-                file: "{{ url_for('static', filename='video/htpy.mp4') }}",
-                title: "环太平洋"
+                file: "{{ url_for('static', filename='uploads/'+movie.url) }}",
+                title: "{{ movie.title }}"
             }],
             modes: [{
                 type: "html5"
