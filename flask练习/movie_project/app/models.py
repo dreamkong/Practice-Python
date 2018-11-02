@@ -6,12 +6,10 @@ from datetime import datetime
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, SmallInteger, BigInteger, Date
-from flask_bcrypt import Bcrypt
+
+from app import bcrypt, db
 
 __author__ = 'dreamkong'
-
-db = SQLAlchemy()
-bcrypt = Bcrypt()
 
 
 class User(db.Model):
@@ -154,9 +152,8 @@ class Admin(db.Model):
     def __repr__(self):
         return "<Admin {}>".format(self.name)
 
-    def check_pwd(self, pwd):
-        from werkzeug.security import check_password_hash
-        return check_password_hash(self.pwd, pwd)
+    def check_password(self, password):
+        return bcrypt.check_password_hash(self.password, password)
 
 
 # 管理员登录日志
@@ -190,15 +187,17 @@ if __name__ == '__main__':
     app.config.from_object('app.config')
     db.init_app(app)
     db.create_all(app=app)
-    bcrypt.init_app(app)
     role = Role(
         name='超级管理员',
         auths=''
     )
     db.session.add(role)
+    from flask_bcrypt import Bcrypt as Bcrypt2
+    bcrypt2 = Bcrypt2()
+    bcrypt2.init_app(app)
     admin = Admin(
         name='admin',
-        password=bcrypt.generate_password_hash('admin'),
+        password=bcrypt2.generate_password_hash('admin'),
         is_super=0,
         role_id=1
     )
