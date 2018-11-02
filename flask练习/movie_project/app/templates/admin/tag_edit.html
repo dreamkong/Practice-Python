@@ -4,7 +4,7 @@
         <h1>微电影管理系统</h1>
         <ol class="breadcrumb">
             <li><a href="#"><i class="fa fa-dashboard"></i> 标签管理</a></li>
-            <li class="active">添加标签</li>
+            <li class="active">修改标签</li>
         </ol>
     </section>
     <section class="content" id="showcontent">
@@ -12,14 +12,14 @@
             <div class="col-md-12">
                 <div class="box box-primary">
                     <div class="box-header with-border">
-                        <h3 class="box-title">添加标签</h3>
+                        <h3 class="box-title">修改标签</h3>
                     </div>
-                    <form role="form" method="post">
+                    <form role="form" method="post" action="{{ url_for('admin.tag_edit', id=tag.id) }}">
                         <div class="box-body">
-                           {% include 'ui/admin_msg.html' %}
+                            {% include 'ui/admin_msg.html' %}
                             <div class="form-group">
                                 <label for="input_name">标签名称</label>
-                                {{ form.name }}
+                                {{ form.name(value=tag.name) }}
                                 {% for err in form.name.errors %}
                                     <div class="col-md-12">
                                         <span style="color: red;">{{ err }}</span>
@@ -41,7 +41,7 @@
     <script>
         $(document).ready(function () {
             $('#g-2').addClass('active');
-            $('#g-2-2').addClass('active')
+            $('#g-2-1').addClass('active')
         })
     </script>
 {% endblock %}
