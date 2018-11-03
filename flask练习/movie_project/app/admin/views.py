@@ -8,14 +8,23 @@ from functools import wraps
 import os
 from werkzeug.utils import secure_filename
 
-from app.admin.forms import LoginForm, TagForm, MovieForm, PreviewForm
-from app.models import Admin, Tag, db, Movie, Preview, User, Comment
+from app import bcrypt
+from app.admin.forms import LoginForm, TagForm, MovieForm, PreviewForm, PasswordForm
+from app.models import Admin, Tag, db, Movie, Preview, User, Comment, MovieFav, OperateLog, AdminLog, UserLog
 from manage import app
 
 __author__ = 'dreamkong'
 
 from . import admin
 from flask import render_template, redirect, url_for, flash, session, request
+
+
+@app.context_processor
+def tpl_extra():
+    data = dict(
+        online_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    )
+    return data
 
 
 # 登录装饰器
@@ -36,6 +45,17 @@ def change_filename(filename):
     return filename
 
 
+# 添加operate_log
+def add_operate_log(reason):
+    operate_log = OperateLog(
+        admin_id=session['admin_id'],
+        ip=request.remote_addr,
+        reason=reason
+    )
+    db.session.add(operate_log)
+    db.session.commit()
+
+
 @admin.route('/')
 @admin_login_req
 def index():
@@ -52,6 +72,13 @@ def login():
             flash('密码错误！')
             return redirect(url_for('admin.login'))
         session['admin'] = data['account']
+        session['admin_id'] = admin.id
+        admin_log = AdminLog(
+            admin_id=admin.id,
+            ip=request.remote_addr
+        )
+        db.session.add(admin_log)
+        db.session.commit()
         return redirect(request.args.get('next') or url_for('admin.index'))
     return render_template('admin/login.html', form=form)
 
@@ -60,13 +87,25 @@ def login():
 @admin_login_req
 def logout():
     session.pop('admin', None)
+    session.pop('admin_id', None)
     return redirect(url_for('admin.login'))
 
 
-@admin.route('/pwd/')
+@admin.route('/pwd/', methods=['GET', 'POST'])
 @admin_login_req
 def pwd():
-    return render_template('admin/pwd.html')
+    form = PasswordForm()
+    if form.validate_on_submit():
+        data = form.data
+        admin = Admin.query.filter_by(name=session['admin']).first()
+        admin.password = bcrypt.generate_password_hash(data['new_password'])
+        db.session.add(admin)
+        db.session.commit()
+        flash('修改密码成功，请重新登录！', 'ok')
+        reason = '修改密码'
+        add_operate_log(reason)
+        return redirect(url_for('admin.logout'))
+    return render_template('admin/pwd.html', form=form)
 
 
 @admin.route('/tag/list/<int:page>', methods=['GET'])
@@ -74,7 +113,7 @@ def pwd():
 def tag_list(page=None):
     if page is None:
         page = 1
-    page_data = Tag.query.order_by(Tag.add_time.desc()).paginate(page=page, per_page=10)
+    page_data = Tag.query.order_by(Tag.add_time.desc()).paginate(page=page, per_page=app.config['PER_PAGE'])
     return render_template('admin/tag_list.html', page_data=page_data)
 
 
@@ -94,6 +133,8 @@ def tag_add():
         db.session.add(tag)
         db.session.commit()
         flash('添加标签成功！', 'ok')
+        reason = '添加了一个标签：{}'.format(tag.name)
+        add_operate_log(reason)
         return redirect(url_for('admin.tag_list', page=1))
     return render_template('admin/tag_add.html', form=form)
 
@@ -105,6 +146,8 @@ def tag_delete(id=None):
     db.session.delete(tag)
     db.session.commit()
     flash('删除成功', 'ok')
+    reason = '删除了一个标签：{}'.format(tag.name)
+    add_operate_log(reason)
     return redirect(url_for('admin.tag_list', page=1))
 
 
@@ -116,8 +159,7 @@ def tag_edit(id=None):
     if form.validate_on_submit():
         data = form.data
         tag_count = Tag.query.filter_by(name=data['name']).count()
-        print(type(data))
-        print(data)
+        old_tag_name = tag.name
         if tag.name != data['name'] and tag_count == 1:
             flash('名称已经存在！', 'err')
             return redirect(url_for('admin.tag_edit', id=id))
@@ -125,6 +167,8 @@ def tag_edit(id=None):
         db.session.add(tag)
         db.session.commit()
         flash('修改标签成功！', 'ok')
+        reason = '修改了一个标签：{}->{}'.format(old_tag_name, tag.name)
+        add_operate_log(reason)
         return redirect(url_for('admin.tag_list', page=1))
     return render_template('admin/tag_edit.html', form=form, tag=tag)
 
@@ -134,7 +178,7 @@ def tag_edit(id=None):
 def movie_list(page=None):
     if page is None:
         page = 1
-    page_data = Movie.query.order_by(Movie.add_time.desc()).paginate(page=page, per_page=10)
+    page_data = Movie.query.order_by(Movie.add_time.desc()).paginate(page=page, per_page=app.config['PER_PAGE'])
     return render_template('admin/movie_list.html', page_data=page_data)
 
 
@@ -168,6 +212,8 @@ def movie_add():
         db.session.add(movie)
         db.session.commit()
         flash('添加电影成功！', 'ok')
+        reason = '添加了一个电影：{}'.format(movie.name)
+        add_operate_log(reason)
         return redirect(url_for('admin.movie_list', page=1))
     return render_template('admin/movie_add.html', form=form)
 
@@ -179,6 +225,8 @@ def movie_delete(id=None):
     db.session.delete(movie)
     db.session.commit()
     flash('删除电影成功！', 'ok')
+    reason = '删除了一个电影：{}'.format(movie.name)
+    add_operate_log(reason)
     return redirect(url_for('admin.movie_list', page=1))
 
 
@@ -226,6 +274,8 @@ def movie_edit(id=None):
         db.session.add(movie)
         db.session.commit()
         flash('修改电影成功！')
+        reason = '修改了一个电影：{}'.format(movie.name)
+        add_operate_log(reason)
         return redirect(url_for('admin.movie_list', page=1))
     return render_template('admin/movie_edit.html', form=form, movie=movie)
 
@@ -235,7 +285,7 @@ def movie_edit(id=None):
 def preview_list(page=None):
     if page is None:
         page = 1
-    page_data = Preview.query.order_by(Preview.add_time.desc()).paginate(per_page=10, page=page)
+    page_data = Preview.query.order_by(Preview.add_time.desc()).paginate(per_page=app.config['PER_PAGE'], page=page)
     return render_template('admin/preview_list.html', page_data=page_data)
 
 
@@ -260,6 +310,8 @@ def preview_add():
         db.session.add(preview)
         db.session.commit()
         flash('添加预告成功！', 'ok')
+        reason = '添加了一个预告：{}'.format(preview.name)
+        add_operate_log(reason)
         return redirect(url_for('admin.preview_list', page=1))
     return render_template('admin/preview_add.html', form=form)
 
@@ -271,6 +323,8 @@ def preview_delete(id=None):
     db.session.delete(preview)
     db.session.commit()
     flash('删除预告成功！', 'ok')
+    reason = '删除了一个预告：{}'.format(preview.name)
+    add_operate_log(reason)
     return redirect(url_for('admin.preview_list', page=1))
 
 
@@ -300,6 +354,8 @@ def preview_edit(id=None):
         db.session.add(preview)
         db.session.commit()
         flash('修改预告成功！', 'ok')
+        reason = '修改了一个预告：{}'.format(preview.name)
+        add_operate_log(reason)
         return redirect(url_for('admin.preview_list', page=1))
     return render_template('admin/preview_edit.html', form=form, preview=preview)
 
@@ -309,7 +365,7 @@ def preview_edit(id=None):
 def user_list(page=None):
     if page is None:
         page = 1
-    page_data = User.query.order_by(User.id.desc()).paginate(page=page, per_page=10)
+    page_data = User.query.order_by(User.id.desc()).paginate(page=page, per_page=app.config['PER_PAGE'])
     return render_template('admin/user_list.html', page_data=page_data)
 
 
@@ -327,6 +383,8 @@ def user_delete(id=None):
     db.session.delete(user)
     db.session.commit()
     flash('删除用户成功！', 'ok')
+    reason = '删除了一个用户：{}'.format(user.name)
+    add_operate_log(reason)
     return redirect(url_for('admin.user_list', page=1))
 
 
@@ -335,37 +393,93 @@ def user_delete(id=None):
 def comment_list(page=None):
     if page is None:
         page = 1
-    page_data = Comment.query\
-        .join(Movie)\
-        .join(User)\
-        .filter(Movie.id == Comment.movie_id,User.id == Comment.user_id)\
-        .order_by(Comment.add_time.desc())\
-        .paginate(page=page, per_page=10)
+    page_data = Comment.query \
+        .join(Movie) \
+        .join(User) \
+        .filter(Movie.id == Comment.movie_id, User.id == Comment.user_id) \
+        .order_by(Comment.add_time.desc()) \
+        .paginate(page=page, per_page=app.config['PER_PAGE'])
     return render_template('admin/comment_list.html', page_data=page_data)
 
 
-@admin.route('/movie_fav/list', methods=['GET'])
+@admin.route('/comment/delete/<int:id>', methods=['GET'])
 @admin_login_req
-def movie_fav_list():
-    return render_template('admin/movie_fav_list.html')
+def comment_delete(id=None):
+    comment = Comment.query.get_or_404(int(id))
+    db.session.delete(comment)
+    db.session.commit()
+    flash('删除评论成功！', 'ok')
+    reason = '删除了一个评论：{}'.format(comment.name)
+    add_operate_log(reason)
+    return redirect(url_for('admin.comment_list', page=1))
 
 
-@admin.route('/operate_log/list', methods=['GET'])
+@admin.route('/movie_fav/list/<int:page>', methods=['GET'])
 @admin_login_req
-def operate_log_list():
-    return render_template('admin/operate_log_list.html')
+def movie_fav_list(page=None):
+    if page is None:
+        page = 1
+    page_data = MovieFav.query \
+        .join(Movie) \
+        .join(User) \
+        .filter(Movie.id == MovieFav.movie_id, User.id == MovieFav.user_id) \
+        .order_by(MovieFav.add_time.desc()) \
+        .paginate(page=page, per_page=app.config['PER_PAGE'])
+    return render_template('admin/movie_fav_list.html', page_data=page_data)
 
 
-@admin.route('/admin_log/list', methods=['GET'])
+@admin.route('/movie_fav/delete/<int:id>', methods=['GET'])
 @admin_login_req
-def admin_log_list():
-    return render_template('admin/admin_log_list.html')
+def movie_fav_delete(id=None):
+    movie_fav = MovieFav.query.join(Movie).filter(MovieFav.movie_id == Movie.id).get_or_404(int(id))
+    db.session.delete(movie_fav)
+    db.session.commit()
+    flash('删除电影收藏成功！', 'ok')
+    reason = '删除了一个电影收藏：{}'.format(movie_fav.movie.name)
+    add_operate_log(reason)
+    return redirect(url_for('admin.movie_fav_list', page=1))
 
 
-@admin.route('/user_log/list', methods=['GET'])
+@admin.route('/operate_log/list/<int:page>', methods=['GET'])
 @admin_login_req
-def user_log_list():
-    return render_template('admin/user_log_list.html')
+def operate_log_list(page=None):
+    if page is None:
+        page = 1
+    page_data = OperateLog \
+        .query \
+        .join(Admin) \
+        .filter(OperateLog.admin_id == Admin.id) \
+        .order_by(OperateLog.add_time.desc()) \
+        .paginate(page=page, per_page=app.config['PER_PAGE'])
+    return render_template('admin/operate_log_list.html', page_data=page_data)
+
+
+@admin.route('/admin_log/list/<int:page>', methods=['GET'])
+@admin_login_req
+def admin_log_list(page):
+    if page is None:
+        page = 1
+    page_data = AdminLog \
+        .query \
+        .join(Admin) \
+        .filter(AdminLog.admin_id == Admin.id) \
+        .order_by(AdminLog.add_time.desc()) \
+        .paginate(page=page, per_page=app.config['PER_PAGE'])
+    return render_template('admin/admin_log_list.html', page_data=page_data)
+
+
+@admin.route('/user_log/list/<int:page>', methods=['GET'])
+@admin_login_req
+def user_log_list(page):
+    if page is None:
+        page = 1
+    page_data = UserLog \
+        .query \
+        .join(User) \
+        .filter(UserLog.user_id == User.id) \
+        .order_by(UserLog.add_time.desc()) \
+        .paginate(page=page, per_page=app.config['PER_PAGE'])
+    return render_template('admin/user_log_list.html', page_data=page_data)
 
 
 @admin.route('/auth/list', methods=['GET'])
