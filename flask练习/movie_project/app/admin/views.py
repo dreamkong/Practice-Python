@@ -9,7 +9,7 @@ import os
 from werkzeug.utils import secure_filename
 
 from app import bcrypt
-from app.admin.forms import LoginForm, TagForm, MovieForm, PreviewForm, PasswordForm, AuthForm, RoleForm
+from app.admin.forms import LoginForm, TagForm, MovieForm, PreviewForm, PasswordForm, AuthForm, RoleForm, AdminForm
 from app.models import Admin, Tag, db, Movie, Preview, User, Comment, MovieFav, OperateLog, AdminLog, UserLog, Auth, \
     Role
 from manage import app
@@ -17,7 +17,7 @@ from manage import app
 __author__ = 'dreamkong'
 
 from . import admin
-from flask import render_template, redirect, url_for, flash, session, request
+from flask import render_template, redirect, url_for, flash, session, request, abort
 
 
 @app.context_processor
@@ -26,6 +26,22 @@ def tpl_extra():
         online_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     )
     return data
+
+
+# 登录装饰器
+def admin_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        admin = Admin.query.join(Role).filter(Admin.role_id == Role.id, Admin.id == session['admin_id'])
+        auths = admin.role.auths
+        auths = list(map(lambda v: int(v), auths.split(',')))
+        auth_list = Auth.query.all()
+        urls = [v.url for v in auth_list for val in auths if v == val]
+        rule = request.url_rule
+        if str(rule) not in urls:
+            abort(404)
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 # 登录装饰器
@@ -85,6 +101,7 @@ def login():
 
 
 @admin.route('/logout/')
+@admin_auth
 @admin_login_req
 def logout():
     session.pop('admin', None)
@@ -607,41 +624,55 @@ def role_edit(id):
 def admin_list(page):
     if page is None:
         page = 1
-    page_data = Admin.query.order_by(Admin.add_time.desc()).paginate(per_page=app.config['PER_PAGE'], page=page)
+    page_data = Admin.query.join(Role).filter(Admin.role_id == Role.id).order_by(Admin.add_time.desc()).paginate(
+        per_page=app.config['PER_PAGE'], page=page)
     return render_template('admin/admin_list.html', page_data=page_data)
 
 
 @admin.route('/admin/add', methods=['GET', 'POST'])
 @admin_login_req
 def admin_add():
-    return render_template('admin/admin_add.html')
-
-
-@admin.route('/role/delete/<int:id>/', methods=['GET'])
-@admin_login_req
-def role_delete(id=None):
-    role = Role.query.filter_by(id=id).first_or_404()
-    db.session.delete(role)
-    db.session.commit()
-    flash('删除成功', 'ok')
-    reason = '删除了一个权限：{}'.format(role.name)
-    add_operate_log(reason)
-    return redirect(url_for('admin.role_list', page=1))
-
-
-@admin.route('/role/edit/<int:id>', methods=['GET', 'POST'])
-@admin_login_req
-def role_edit(id):
-    role = Role.query.get_or_404(id)
-    form = RoleForm()
-    if request.method == 'GET':
-        form.auths.data = list(map(lambda v: int(v), role.auths.split(',')))
+    form = AdminForm()
     if form.validate_on_submit():
         data = form.data
-        role.name = data['name']
-        role.auths = ','.join(map(lambda v: str(v), data['auths']))
-        db.session.add(role)
+        admin = Admin(
+            name=data['name'],
+            password=bcrypt.generate_password_hash(data['password']),
+            # is_super=data['is_super'],
+            role_id=data['role_id']
+        )
+        db.session.add(admin)
+        db.session.commit()
+        flash('添加管理员成功！', 'ok')
+        return redirect(url_for('admin.admin_list', page=1))
+    return render_template('admin/admin_add.html', form=form)
+
+
+@admin.route('/admin/delete/<int:id>/', methods=['GET'])
+@admin_login_req
+def admin_delete(id=None):
+    admin = Admin.query.filter_by(id=id).first_or_404()
+    db.session.delete(admin)
+    db.session.commit()
+    flash('删除成功', 'ok')
+    reason = '删除了一个管理员：{}'.format(admin.name)
+    add_operate_log(reason)
+    return redirect(url_for('admin.admin_list', page=1))
+
+
+@admin.route('/admin/edit/<int:id>', methods=['GET', 'POST'])
+@admin_login_req
+def admin_edit(id):
+    admin = Admin.query.get_or_404(id)
+    form = AdminForm()
+    if request.method == 'GET':
+        form.auths.data = list(map(lambda v: int(v), admin.auths.split(',')))
+    if form.validate_on_submit():
+        data = form.data
+        admin.name = data['name']
+        admin.auths = ','.join(map(lambda v: str(v), data['auths']))
+        db.session.add(admin)
         db.session.commit()
         flash('修改标签成功！', 'ok')
-        return redirect(url_for('admin.role_list', page=1))
-    return render_template('admin/role_edit.html', form=form, role=role)
+        return redirect(url_for('admin.admin_list', page=1))
+    return render_template('admin/admin_edit.html', form=form, admin=admin)
