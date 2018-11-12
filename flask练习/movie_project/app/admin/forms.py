@@ -2,16 +2,17 @@
 Created by dreamkong on 2018/10/31
 """
 from flask_wtf import FlaskForm
-from wtforms import PasswordField, SubmitField, StringField, FileField, TextAreaField, SelectField
+from wtforms import PasswordField, SubmitField, StringField, FileField, TextAreaField, SelectField, SelectMultipleField
 from wtforms.validators import DataRequired, ValidationError
 
-from app.models import Admin, Tag
+from app.models import Admin, Tag, Auth
 from manage import app
 
 __author__ = 'dreamkong'
 
 with app.app_context():
     tags = Tag.query.all()
+    auth_list = Auth.query.all()
 
 
 class LoginForm(FlaskForm):
@@ -293,3 +294,91 @@ class AuthForm(FlaskForm):
             'class': 'btn btn-primary'
         }
     )
+
+
+class RoleForm(FlaskForm):
+    name = StringField(
+        label='角色名称',
+        validators=[
+            DataRequired('请输入角色名称！')
+        ],
+        description='角色名称',
+        render_kw={
+            'class': 'form-control',
+            'placeholder': '请输入角色名称！',
+            'required': False
+        }
+    )
+    auths = SelectMultipleField(
+        label='权限列表',
+        validators=[
+            DataRequired('请选择权限列表！')
+        ],
+        description='权限列表',
+        coerce=int,
+        choices=[(v.id, v.name) for v in auth_list],
+        render_kw={
+            'class': 'form-control',
+            'placeholder': '请选择权限列表',
+            'required': False
+        }
+    )
+    submit = SubmitField(
+        label='确定',
+        render_kw={
+            'class': 'btn btn-primary'
+        }
+    )
+
+
+class AdminForm(FlaskForm):
+    name = StringField(
+        label='管理员名称',
+        validators=[
+            DataRequired('请输入管理员名称！')
+        ],
+        description='管理员名称',
+        render_kw={
+            'class': 'form-control',
+            'placeholder': '请输入管理员名称！',
+            'required': False
+        }
+    )
+    password = PasswordField(
+        label='密码',
+        validators=[
+            DataRequired('请输入密码！')
+        ],
+        description='密码',
+        render_kw={
+            'class': 'form-control',
+            'placeholder': '请输入密码！',
+            'required': False
+        }
+    )
+
+    repassword = PasswordField(
+        label='重复密码',
+        validators=[
+            DataRequired('请输入重复密码！')
+        ],
+        description='重复密码',
+        render_kw={
+            'class': 'form-control',
+            'placeholder': '请输入重复密码！',
+            'required': False
+        }
+    )
+    role_id =
+    submit = SubmitField(
+        label='登录',
+        render_kw={
+            'class': 'btn btn-primary btn-block btn-flat'
+        }
+    )
+
+    def validate_account(self, field):
+        account = field.data
+        admin = Admin.query.filter_by(name=account).count()
+        if admin == 0:
+            raise ValidationError('账号不存在')
