@@ -4,7 +4,6 @@ Created by dreamkong on 2018/10/31
 from datetime import datetime
 
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, SmallInteger, BigInteger, Date
 
 from app import bcrypt, db

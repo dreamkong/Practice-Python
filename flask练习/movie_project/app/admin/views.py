@@ -9,8 +9,8 @@ import os
 from werkzeug.utils import secure_filename
 
 from app import bcrypt
-from app.admin.forms import LoginForm, TagForm, MovieForm, PreviewForm, PasswordForm
-from app.models import Admin, Tag, db, Movie, Preview, User, Comment, MovieFav, OperateLog, AdminLog, UserLog
+from app.admin.forms import LoginForm, TagForm, MovieForm, PreviewForm, PasswordForm, AuthForm
+from app.models import Admin, Tag, db, Movie, Preview, User, Comment, MovieFav, OperateLog, AdminLog, UserLog, Auth
 from manage import app
 
 __author__ = 'dreamkong'
@@ -482,16 +482,67 @@ def user_log_list(page):
     return render_template('admin/user_log_list.html', page_data=page_data)
 
 
-@admin.route('/auth/list', methods=['GET'])
+@admin.route('/auth/list/<int:page>', methods=['GET'])
 @admin_login_req
-def auth_list():
-    return render_template('admin/auth_list.html')
+def auth_list(page):
+    if page is None:
+        page = 1
+    page_data = Auth.query.order_by(Auth.add_time.desc()).paginate(per_page=app.config['PER_PAGE'], page=page)
+    return render_template('admin/auth_list.html', page_data=page_data)
 
 
 @admin.route('/auth/add', methods=['GET', 'POST'])
 @admin_login_req
 def auth_add():
-    return render_template('admin/auth_add.html')
+    form = AuthForm()
+    if form.validate_on_submit():
+        data = form.data
+        auth = Auth(
+            name=data['name'],
+            url=data['url']
+        )
+        db.session.add(auth)
+        db.session.commit()
+        flash('权限添加成功', 'ok')
+        reason = '添加了一个权限：{}'.format(auth.name)
+        add_operate_log(reason)
+        return redirect(url_for('admin.auth_list', page=1))
+    return render_template('admin/auth_add.html', form=form)
+
+
+@admin.route('/auth/delete/<int:id>/', methods=['GET'])
+@admin_login_req
+def auth_delete(id=None):
+    auth = Auth.query.filter_by(id=id).first_or_404()
+    db.session.delete(auth)
+    db.session.commit()
+    flash('删除成功', 'ok')
+    reason = '删除了一个权限：{}'.format(auth.name)
+    add_operate_log(reason)
+    return redirect(url_for('admin.auth_list', page=1))
+
+
+@admin.route('/auth/edit/<int:id>', methods=['GET', 'POST'])
+@admin_login_req
+def auth_edit(id=None):
+    auth = Auth.query.get_or_404(id)
+    form = AuthForm()
+    if form.validate_on_submit():
+        data = form.data
+        auth_count = Auth.query.filter_by(name=data['name']).count()
+        old_auth_name = auth.name
+        if auth.name != data['name'] and auth_count == 1:
+            flash('名称已经存在！', 'err')
+            return redirect(url_for('admin.auth_edit', id=id))
+        auth.name = data['name']
+        auth.url = data['url']
+        db.session.add(auth)
+        db.session.commit()
+        flash('修改权限成功！', 'ok')
+        reason = '修改了一个权限：{}->{}'.format(old_auth_name, auth.name)
+        add_operate_log(reason)
+        return redirect(url_for('admin.auth_list', page=1))
+    return render_template('admin/auth_edit.html', form=form, auth=auth)
 
 
 @admin.route('/role/list', methods=['GET'])

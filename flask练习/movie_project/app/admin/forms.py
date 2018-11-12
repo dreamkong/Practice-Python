@@ -12,7 +12,6 @@ __author__ = 'dreamkong'
 
 with app.app_context():
     tags = Tag.query.all()
-    print('啦啦啦啦', [(v.id, v.name) for v in tags])
 
 
 class LoginForm(FlaskForm):
@@ -261,3 +260,36 @@ class PasswordForm(FlaskForm):
         admin = Admin.query.filter_by(name=name).first()
         if not admin.check_password(old_password):
             raise ValidationError('旧密码不正确！')
+
+
+class AuthForm(FlaskForm):
+    name = StringField(
+        label='权限名称',
+        validators=[
+            DataRequired('请输入权限名称！')
+        ],
+        description='权限名称',
+        render_kw={
+            'class': 'form-control',
+            'placeholder': '请输入权限名称！',
+            'required': False
+        }
+    )
+    url = StringField(
+        label='权限地址',
+        validators=[
+            DataRequired('请输入权限地址！')
+        ],
+        description='权限地址',
+        render_kw={
+            'class': 'form-control',
+            'placeholder': '请输入权限地址！',
+            'required': False
+        }
+    )
+    submit = SubmitField(
+        label='确定',
+        render_kw={
+            'class': 'btn btn-primary'
+        }
+    )
