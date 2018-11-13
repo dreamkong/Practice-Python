@@ -15,7 +15,7 @@ class User(db.Model):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
     name = Column(String(50), unique=True)
-    password = Column(String(30))
+    password = Column(String(100))
     email = Column(String(100), unique=True)
     phone = Column(String(11), unique=True)
     info = Column(Text)
@@ -28,6 +28,9 @@ class User(db.Model):
 
     def __repr__(self):
         return '<User {}>'.format(self.name)
+
+    def check_password(self, password):
+        return bcrypt.check_password_hash(self.password, password)
 
 
 class UserLog(db.Model):
@@ -192,6 +195,7 @@ if __name__ == '__main__':
     )
     db.session.add(role)
     from flask_bcrypt import Bcrypt as Bcrypt2
+
     bcrypt2 = Bcrypt2()
     bcrypt2.init_app(app)
     admin = Admin(
