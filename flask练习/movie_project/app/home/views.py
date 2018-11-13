@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 
 from app import bcrypt, db
 from app.home.forms import RegisterForm, LoginForm, UserDetailForm, PasswordForm, CommentForm
-from app.models import User, UserLog, Preview, Tag, Movie, Comment
+from app.models import User, UserLog, Preview, Tag, Movie, Comment, MovieFav
 
 # from manage import app
 
@@ -227,6 +227,26 @@ def moviefav(page):
     if page is None:
         page = 1
     return render_template('home/moviefav.html')
+
+
+@home.route('/moviefav/add', methods=['GET'])
+@user_login_req
+def moviefav_add():
+    mid = request.args.get('mid', '')
+    uid = request.args.get('uid', '')
+    moviefav_count = MovieFav.query.filter(MovieFav.movie_id == int(mid), MovieFav.user_id == int(uid)).count()
+    if moviefav_count == 1:
+        data = dict(ok=0)
+    else:
+        moviefav = MovieFav(
+            movie_id=mid,
+            user_id=uid
+        )
+        db.session.add(moviefav)
+        db.session.commit()
+        data = dict(ok=1)
+    import json
+    return json.dumps(data)
 
 
 @home.route('/animation/', methods=['GET', 'POST'])
