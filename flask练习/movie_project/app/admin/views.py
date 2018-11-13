@@ -28,19 +28,27 @@ def tpl_extra():
     return data
 
 
-# 登录装饰器
+# 权限控制装饰器
 def admin_auth(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        admin = Admin.query.join(Role).filter(Admin.role_id == Role.id, Admin.id == session['admin_id'])
+        admin = Admin \
+            .query \
+            .join(Role) \
+            .filter(Admin.role_id == Role.id, Admin.id == session['admin_id']) \
+            .first()
         auths = admin.role.auths
-        auths = list(map(lambda v: int(v), auths.split(',')))
+        if auths:
+            auths = list(map(lambda v: int(v), auths.split(',')))
+        else:
+            auths = []
         auth_list = Auth.query.all()
         urls = [v.url for v in auth_list for val in auths if v == val]
         rule = request.url_rule
         if str(rule) not in urls:
             abort(404)
         return f(*args, **kwargs)
+
     return decorated_function
 
 
@@ -101,7 +109,6 @@ def login():
 
 
 @admin.route('/logout/')
-@admin_auth
 @admin_login_req
 def logout():
     session.pop('admin', None)
@@ -136,6 +143,7 @@ def tag_list(page=None):
 
 
 @admin.route('/tag/add', methods=['GET', 'POST'])
+@admin_auth
 @admin_login_req
 def tag_add():
     form = TagForm()
@@ -158,6 +166,7 @@ def tag_add():
 
 
 @admin.route('/tag/delete/<int:id>/', methods=['GET'])
+@admin_auth
 @admin_login_req
 def tag_delete(id=None):
     tag = Tag.query.filter_by(id=id).first_or_404()
@@ -170,6 +179,7 @@ def tag_delete(id=None):
 
 
 @admin.route('/tag/edit/<int:id>', methods=['GET', 'POST'])
+@admin_auth
 @admin_login_req
 def tag_edit(id=None):
     tag = Tag.query.get_or_404(id)
