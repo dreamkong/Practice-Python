@@ -338,7 +338,7 @@ def preview_add():
         db.session.add(preview)
         db.session.commit()
         flash('添加预告成功！', 'ok')
-        reason = '添加了一个预告：{}'.format(preview.name)
+        reason = '添加了一个预告：{}'.format(preview.title)
         add_operate_log(reason)
         return redirect(url_for('admin.preview_list', page=1))
     return render_template('admin/preview_add.html', form=form)
