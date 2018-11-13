@@ -245,3 +245,23 @@ class PasswordForm(FlaskForm):
         print('kakkaakakak')
         if not user.check_password(old_password):
             raise ValidationError('旧密码不正确！')
+
+
+class CommentForm(FlaskForm):
+    content = TextAreaField(
+        label='评论内容',
+        validators=[
+            DataRequired('请输入评论内容！'),
+        ],
+        description='评论内容',
+        render_kw={
+            'id':'input_content',
+            'required': False
+        }
+    )
+    submit = SubmitField(
+        label='提交评论',
+        render_kw={
+            'class': 'btn btn-success'
+        }
+    )

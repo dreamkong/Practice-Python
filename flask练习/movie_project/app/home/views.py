@@ -9,8 +9,8 @@ import os
 from werkzeug.utils import secure_filename
 
 from app import bcrypt, db
-from app.home.forms import RegisterForm, LoginForm, UserDetailForm, PasswordForm
-from app.models import User, UserLog, Preview, Tag, Movie
+from app.home.forms import RegisterForm, LoginForm, UserDetailForm, PasswordForm, CommentForm
+from app.models import User, UserLog, Preview, Tag, Movie, Comment
 
 # from manage import app
 
@@ -240,7 +240,29 @@ def search(page):
     return render_template('home/search.html', page_data=page_data, movie_count=movie_count, key=key)
 
 
-@home.route('/play/<int:id>', methods=['GET', 'POST'])
-def play(id):
+@home.route('/play/<int:id>/<int:page>', methods=['GET', 'POST'])
+def play(id, page):
     movie = Movie.query.join(Tag).filter(Movie.tag_id == Tag.id, Movie.id == int(id)).first_or_404()
-    return render_template('home/play.html', movie=movie)
+    if page is None:
+        page = 1
+    page_data = Comment.query.join(Movie).join(User).filter(Comment.movie_id == Movie.id,
+                                                            Comment.user_id == User.id).order_by(
+        Comment.add_time.desc()).paginate(per_page=current_app.config['PER_PAGE'], page=page)
+    movie.play_nums = movie.play_nums + 1
+    db.session.add(movie)
+    db.session.commit()
+    form = CommentForm()
+    if form.validate_on_submit():
+        data = form.data
+        comment = Comment(
+            content=data['content'],
+            user_id=session['user_id'],
+            movie_id=movie.id
+        )
+        db.session.add(comment)
+        movie.comment_nums = movie.comment_nums + 1
+        db.session.add(movie)
+        db.session.commit()
+        flash('添加评论成功！', 'ok')
+        return redirect(url_for('home.play', id=movie.id, page=1))
+    return render_template('home/play.html', movie=movie, form=form, page_data=page_data)
