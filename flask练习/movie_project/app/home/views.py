@@ -226,7 +226,10 @@ def loginlog(page):
 def moviefav(page):
     if page is None:
         page = 1
-    return render_template('home/moviefav.html')
+    page_data = MovieFav.query.join(Movie).filter(MovieFav.movie_id == Movie.id,
+                                                  MovieFav.user_id == session['user_id']).order_by(
+        MovieFav.add_time.desc()).paginate(per_page=current_app.config['PER_PAGE'], page=page)
+    return render_template('home/moviefav.html', page_data=page_data)
 
 
 @home.route('/moviefav/add', methods=['GET'])
