@@ -237,9 +237,10 @@ def search(page):
         Movie.add_time.desc()).count()
     page_data = Movie.query.filter(Movie.title.ilike('%' + key + '%')).order_by(Movie.add_time.desc()).paginate(
         per_page=10, page=page)
-    return render_template('home/search.html', page_data=page_data, movie_count=movie_count,key=key)
+    return render_template('home/search.html', page_data=page_data, movie_count=movie_count, key=key)
 
 
-@home.route('/play/', methods=['GET', 'POST'])
-def play():
-    return render_template('home/play.html')
+@home.route('/play/<int:id>', methods=['GET', 'POST'])
+def play(id):
+    movie = Movie.query.join(Tag).filter(Movie.tag_id == Tag.id, Movie.id == int(id)).first_or_404()
+    return render_template('home/play.html', movie=movie)
