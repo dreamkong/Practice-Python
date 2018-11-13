@@ -26,15 +26,15 @@ from flask import render_template, redirect, url_for, flash, request, session, c
 #     return filename
 
 
-# # 登录装饰器
-# def user_login_req(f):
-#     @wraps(f)
-#     def decorated_function(*args, **kwargs):
-#         if not session.get('user'):
-#             return redirect(url_for('home.login', next=request.url))
-#         return f(*args, **kwargs)
-#
-#     return decorated_function
+# 登录装饰器
+def user_login_req(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user'):
+            return redirect(url_for('home.login', next=request.url))
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
 @home.route('/', methods=['GET'])
