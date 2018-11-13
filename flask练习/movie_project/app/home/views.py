@@ -17,25 +17,25 @@ def index():
     return render_template('home/index.html')
 
 
-# @home.route('/login/', methods=['GET', 'POST'])
-# def login():
-#     form = LoginForm()
-#     if form.validate_on_submit():
-#         data = form.data
-#         user = User.query.filter_by(name=data['name']).first()
-#         if user.check_password(data['password']):
-#             flash('密码错误！', 'err')
-#             return redirect(url_for('home.login'))
-#         session['user'] = user.name
-#         session['user_id'] = user.id
-#         user_log = UserLog(
-#             user_id=user.id,
-#             ip=request.remote_addr
-#         )
-#         db.session.add(user_log)
-#         db.session.commit()
-#         return redirect(url_for('home.user'))
-#     return render_template('home/login.html', form=form)
+@home.route('/login/', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        data = form.data
+        user = User.query.filter_by(name=data['name']).first()
+        if user.check_password(data['password']):
+            flash('密码错误！', 'err')
+            return redirect(url_for('home.login'))
+        session['user'] = user.name
+        session['user_id'] = user.id
+        user_log = UserLog(
+            user_id=user.id,
+            ip=request.remote_addr
+        )
+        db.session.add(user_log)
+        db.session.commit()
+        return redirect(url_for('home.user'))
+    return render_template('home/login.html', form=form)
 
 
 @home.route('/logout/', methods=['GET'])

@@ -102,34 +102,34 @@ class RegisterForm(FlaskForm):
             raise ValidationError('电话号码已经存在！')
 
 
-# class LoginForm(FlaskForm):
-#     name = StringField(
-#         label='账号',
-#         validators=[
-#             DataRequired('请输入账号！')
-#         ],
-#         description='账号',
-#         render_kw={
-#             'class': 'form-control input-lg',
-#             'placeholder': '请输入账号！',
-#             'required': False
-#         }
-#     )
-#     password = PasswordField(
-#         label='密码',
-#         validators=[
-#             DataRequired('请输入密码！')
-#         ],
-#         description='密码',
-#         render_kw={
-#             'class': 'form-control input-lg',
-#             'placeholder': '请输入密码！',
-#             'required': False
-#         }
-#     )
-#     submit = SubmitField(
-#         label='登录',
-#         render_kw={
-#             'class': 'btn btn-lg btn-success btn-block'
-#         }
-#     )
+class LoginForm(FlaskForm):
+    name = StringField(
+        label='账号',
+        validators=[
+            DataRequired('请输入账号！')
+        ],
+        description='账号',
+        render_kw={
+            'class': 'form-control input-lg',
+            'placeholder': '请输入账号！',
+            'required': False
+        }
+    )
+    password = PasswordField(
+        label='密码',
+        validators=[
+            DataRequired('请输入密码！')
+        ],
+        description='密码',
+        render_kw={
+            'class': 'form-control input-lg',
+            'placeholder': '请输入密码！',
+            'required': False
+        }
+    )
+    submit = SubmitField(
+        label='登录',
+        render_kw={
+            'class': 'btn btn-lg btn-success btn-block'
+        }
+    )
