@@ -199,10 +199,15 @@ def pwd():
     return render_template('home/pwd.html', form=form)
 
 
-@home.route('/comments/', methods=['GET', 'POST'])
+@home.route('/comments/<int:page>', methods=['GET', 'POST'])
 @user_login_req
-def comments():
-    return render_template('home/comments.html')
+def comments(page):
+    if page is None:
+        page = 1
+    page_data = Comment.query.join(Movie).filter(Comment.movie_id == Movie.id,
+                                                 Comment.user_id == session['user_id']).order_by(
+        Comment.add_time.desc()).paginate(per_page=current_app.config['PER_PAGE'], page=page)
+    return render_template('home/comments.html', page_data=page_data)
 
 
 @home.route('/loginlog/<int:page>', methods=['GET', 'POST'])
@@ -216,9 +221,11 @@ def loginlog(page):
     return render_template('home/loginlog.html', page_data=page_data)
 
 
-@home.route('/moviefav/', methods=['GET', 'POST'])
+@home.route('/moviefav/<int:page>', methods=['GET', 'POST'])
 @user_login_req
-def moviefav():
+def moviefav(page):
+    if page is None:
+        page = 1
     return render_template('home/moviefav.html')
 
 
