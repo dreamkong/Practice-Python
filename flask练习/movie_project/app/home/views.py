@@ -9,7 +9,7 @@ import os
 from werkzeug.utils import secure_filename
 
 from app import bcrypt, db
-from app.home.forms import RegisterForm, LoginForm, UserDetailForm
+from app.home.forms import RegisterForm, LoginForm, UserDetailForm, PasswordForm
 from app.models import User, UserLog
 
 # from manage import app
@@ -48,7 +48,7 @@ def login():
     if form.validate_on_submit():
         data = form.data
         user = User.query.filter_by(name=data['name']).first()
-        if user.check_password(data['password']):
+        if not user.check_password(data['password']):
             flash('密码错误！', 'err')
             return redirect(url_for('home.login'))
         session['user'] = user.name
@@ -138,7 +138,16 @@ def user():
 @home.route('/pwd/', methods=['GET', 'POST'])
 @user_login_req
 def pwd():
-    return render_template('home/pwd.html')
+    form = PasswordForm()
+    if form.validate_on_submit():
+        data = form.data
+        user = User.query.filter_by(name=session['user']).first()
+        user.password = bcrypt.generate_password_hash(data['new_password'])
+        db.session.add(user)
+        db.session.commit()
+        flash('修改密码成功，请重新登录！', 'ok')
+        return redirect(url_for('home.logout'))
+    return render_template('home/pwd.html', form=form)
 
 
 @home.route('/comments/', methods=['GET', 'POST'])
@@ -147,10 +156,15 @@ def comments():
     return render_template('home/comments.html')
 
 
-@home.route('/loginlog/', methods=['GET', 'POST'])
-@user_login_req
-def loginlog():
-    return render_template('home/loginlog.html')
+# @home.route('/loginlog/<int:page>', methods=['GET', 'POST'])
+# @user_login_req
+# def loginlog(page):
+#     if page is None:
+#         page = 1
+#     page_data = UserLog.query.filter_by(user_id=int(session['user_id'])).order_by(
+#         UserLog.add_time.desc()).paginate(per_page=current_app.config['PER_PAGE'],
+#                                           page=page)
+#     return render_template('home/loginlog.html', page_data=page_data)
 
 
 @home.route('/moviefav/', methods=['GET', 'POST'])

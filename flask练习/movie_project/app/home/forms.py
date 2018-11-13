@@ -203,3 +203,45 @@ class UserDetailForm(FlaskForm):
             'class': 'btn btn-success'
         }
     )
+
+
+class PasswordForm(FlaskForm):
+    old_password = PasswordField(
+        label='旧密码',
+        validators=[
+            DataRequired('请输入旧密码！')
+        ],
+        description='旧密码',
+        render_kw={
+            'class': 'form-control',
+            'placeholder': '请输入旧密码！',
+            'required': False
+        }
+    )
+    new_password = PasswordField(
+        label='新密码',
+        validators=[
+            DataRequired('请输入新密码！')
+        ],
+        description='新密码',
+        render_kw={
+            'class': 'form-control',
+            'placeholder': '请输入新密码！',
+            'required': False
+        }
+    )
+    submit = SubmitField(
+        label='确定',
+        render_kw={
+            'class': 'btn btn-primary'
+        }
+    )
+
+    def validate_old_password(self, field):
+        from flask import session
+        old_password = field.data
+        name = session['user']
+        user = User.query.filter_by(name=name).first()
+        print('kakkaakakak')
+        if not user.check_password(old_password):
+            raise ValidationError('旧密码不正确！')
