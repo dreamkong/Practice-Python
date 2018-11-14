@@ -8,7 +8,7 @@ from functools import wraps
 import os
 from werkzeug.utils import secure_filename
 
-from app import bcrypt, db
+from app import bcrypt, db, rd
 from app.home.forms import RegisterForm, LoginForm, UserDetailForm, PasswordForm, CommentForm
 from app.models import User, UserLog, Preview, Tag, Movie, Comment, MovieFav
 
@@ -17,7 +17,7 @@ from app.models import User, UserLog, Preview, Tag, Movie, Comment, MovieFav
 __author__ = 'dreamkong'
 
 from . import home
-from flask import render_template, redirect, url_for, flash, request, session, current_app
+from flask import render_template, redirect, url_for, flash, request, session, current_app, Response
 
 
 def change_filename(filename):
@@ -97,7 +97,7 @@ def login():
     if form.validate_on_submit():
         data = form.data
         user = User.query.filter_by(name=data['name']).first()
-        if not user.check_password(data['password']):
+        if user and not user.check_password(data['password']):
             flash('密码错误！', 'err')
             return redirect(url_for('home.login'))
         session['user'] = user.name
@@ -296,3 +296,76 @@ def play(id, page):
         flash('添加评论成功！', 'ok')
         return redirect(url_for('home.play', id=movie.id, page=1))
     return render_template('home/play.html', movie=movie, form=form, page_data=page_data)
+
+
+@home.route('/video/<int:id>/<int:page>', methods=['GET', 'POST'])
+def video(id, page):
+    movie = Movie.query.join(Tag).filter(Movie.tag_id == Tag.id, Movie.id == int(id)).first_or_404()
+    if page is None:
+        page = 1
+    page_data = Comment.query.join(Movie).join(User).filter(Comment.movie_id == Movie.id,
+                                                            Comment.user_id == User.id).order_by(
+        Comment.add_time.desc()).paginate(per_page=current_app.config['PER_PAGE'], page=page)
+    movie.play_nums = movie.play_nums + 1
+    db.session.add(movie)
+    db.session.commit()
+    form = CommentForm()
+    if form.validate_on_submit():
+        data = form.data
+        comment = Comment(
+            content=data['content'],
+            user_id=session['user_id'],
+            movie_id=movie.id
+        )
+        db.session.add(comment)
+        movie.comment_nums = movie.comment_nums + 1
+        db.session.add(movie)
+        db.session.commit()
+        flash('添加评论成功！', 'ok')
+        return redirect(url_for('home.video', id=movie.id, page=1))
+    return render_template('home/video.html', movie=movie, form=form, page_data=page_data)
+
+
+@home.route('/tm/', methods=['GET', 'POST'])
+def tm():
+    import json
+    if request.method == 'GET':
+        id = request.args.get('id')
+        key = 'movie' + str(id)
+        if rd.llen(key):
+            msgs = rd.lrange(key, 0, 2999)
+            res = {
+                'code': 1,
+                'danmaku': [json.loads(v) for v in msgs]
+            }
+        else:
+            res = {
+                'code': 1,
+                'danmaku': []
+            }
+        resp = json.dumps(res)
+    if request.method == 'POST':
+        # 添加弹幕
+        data = json.loads(request.get_data())
+        print(data     )
+        msg = {
+            "__v": 0,
+            "author": data["author"],
+            "time": data["time"],
+            "text": data["text"],
+            "color": data["color"],
+            "type": data['type'],
+            "ip": request.remote_addr,
+            "_id": datetime.now().strftime("%Y%m%d%H%M%S") + uuid.uuid4().hex,
+            "player": [
+                data["player"]
+            ]
+        }
+        res = {
+            'code': 1,
+            'data': msg
+        }
+        resp = json.dumps(res)
+        # 将添加的弹幕推入redis的队列中
+        rd.lpush('movie' + str(data['player']), json.dumps(msg))
+    return Response(resp, mimetype='application/json')
