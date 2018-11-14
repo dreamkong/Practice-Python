@@ -39,7 +39,7 @@
                         </div>
                     </div>
                     <div class="box-body table-responsive no-padding">
-                    {% include 'ui/admin_msg.html' %}
+                        {% include 'ui/admin_msg.html' %}
                         <table class="table table-hover">
                             <tbody>
                             <tr>
@@ -59,8 +59,13 @@
                                     <td>{{ v.email }}</td>
                                     <td>{{ v.phone }}</td>
                                     <td>
-                                        <img src="{{ url_for('static', filename='uploads/'+v.avatar) }}"
-                                             class="img-responsive center-block" alt="avatar" style="width: 50px">
+                                        {% if v.avatar %}
+                                            <img src="{{ url_for('static', filename='uploads/'+v.avatar) }}"
+                                                 class="img-responsive center-block" alt="avatar" style="width: 50px">
+                                        {% else %}
+                                            <img data-src="holder.js/50x50"
+                                                 class="img-responsive center-block" alt="avatar" style="width: 50px">
+                                        {% endif %}
                                     </td>
                                     <td>正常/冻结</td>
                                     <td>{{ v.add_time }}</td>
