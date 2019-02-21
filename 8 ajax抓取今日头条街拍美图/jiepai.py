@@ -1,77 +1,117 @@
+import json
+from json import JSONDecodeError
+import re
 import os
-from multiprocessing.pool import Pool
+from multiprocessing import Pool
 import requests
-from urllib.parse import urlencode
-from hashlib import md5
+from requests.exceptions import RequestException
+from bs4 import BeautifulSoup
 import pymongo
 
-client = pymongo.MongoClient('localhost')
-db = client['tutiao']
+client = pymongo.MongoClient('localhost', connect=False)
+db = client['toutiao']
+
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36'
+}
 
 
-def get_page(offset):
-    params = {
+def get_page_index(offset, keyword):
+    data = {
+        'aid': 24,
+        'app_name': 'web_search',
         'offset': offset,
         'format': 'json',
-        'keyword': '街拍',
-        'autoload': 'true',
-        'count': '20',
-        'cur_tab': '1',
+        'keyword': keyword,
+        'autoload': True,
+        'count': 20,
+        'cur_tab': 1,
+        'from': 'search_tab',
+        'pd': 'synthesis'
     }
-    url = 'http://www.toutiao.com/search_content/?' + urlencode(params)
+    url = 'https://www.toutiao.com/api/search/content/'
     try:
-        response = requests.get(url)
+        response = requests.get(url, params=data, headers=headers)
         if response.status_code == 200:
-            return response.json()
-    except requests.ConnectionError:
+            return response.text
+        return None
+    except RequestException:
         return None
 
 
-def get_images(json):
-
-    if json.get('data'):
-        for item in json.get('data'):
-            try:
-                title = item.get('title')
-                images = item.get('image_detail')
-                for image in images:
-                    yield {
-                        'image': image.get('url'),
-                        'title': title
-                    }
-            except:
-                continue
+def parse_page_index(html):
+    data = json.loads(html)
+    # print(data)
+    if data and 'data' in data.keys():
+        for item in data.get('data'):
+            yield item.get('article_url')
 
 
-def save_to_mongo(item):
-    if db['toutiao'].insert(item):
-        print('Save to Mongo Successful', item)
+def get_page_detail(url):
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.text
+        return None
+    except RequestException:
+        return None
+
+
+def parse_page_detail(html, url):
+    soup = BeautifulSoup(html, 'lxml')
+    title = soup.select('title')[0].get_text()
+    print(title)
+    images_pattern = re.compile('gallery:\sJSON.parse\((.*?)\),', re.S)
+    result = re.search(images_pattern, html)
+    if result:
+        try:
+            data = json.loads(json.loads(result.group(1)))
+            if data and 'sub_images' in data.keys():
+                sub_images = data.get('sub_images')
+                images = [item['url'] for item in sub_images]
+                return {
+                    'title': title,
+                    'url': url,
+                    'images': images
+                }
+        except JSONDecodeError:
+            print('json解析错误~~')
+
+
+def save_to_mongo(result):
+    if db['jiepai'].insert(result):
+        print('存储到MongoDB成功！', result.get('title'))
         return True
     return False
 
 
-def save_image(item):
-    if not os.path.exists(item.get('title')):
-        os.mkdir(item.get('title'))
-    try:
-        response = requests.get(item.get('image'))
-        if response.status_code == 200:
-            file_path = '{0}/{1}.{2}'.format(item.get('title'),
-                                             md5(response.content).hexdigest(), 'jpg')
-            if not os.path.exists(file_path):
+def download_image(result):
+    base_file_path = os.getcwd() + '/街拍爬虫/' + result.get('title')
+    if not os.path.exists(base_file_path):
+        os.makedirs(base_file_path)
+    for url in result.get('images'):
+        try:
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                file_path = base_file_path + '/' + url.split('/')[-1] + '.jpg'
                 with open(file_path, 'wb') as f:
                     f.write(response.content)
             else:
-                print('Already Downloaded', file_path)
-    except requests.ConnectionError:
-        print('Failed to Save Image')
+                continue
+        except RequestException:
+            continue
 
 
-def main(offset):
-    json = get_page(offset)
-    for item in get_images(json):
-        save_to_mongo(item)
-        save_image(item)
+def main(offset, keyword='街拍'):
+    html = get_page_index(offset, keyword)
+    for url in parse_page_index(html):
+        print(url)
+        html = get_page_detail(url)
+        if html:
+            result = parse_page_detail(html, url)
+            if result:
+                save_to_mongo(result)
+                download_image(result)
 
 
 GROUP_START = 1
