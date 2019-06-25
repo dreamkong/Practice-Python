@@ -9,3 +9,4 @@ flask练习/movie_project/app/home/__pycache__
 Pipfile.lock
 flask练习/movie_project/__pycache__
 flask练习/movie_project/app/static/uploads
+.ipynb_checkpoints
